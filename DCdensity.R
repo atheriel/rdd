@@ -33,7 +33,7 @@
 #' x<-x+2*(runif(1000,-1,1)>0&x<0)
 #' DCdensity(x,0)
 
-DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,ext.out=FALSE,htest=FALSE) {
+DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=FALSE) {
   runvar <- runvar[complete.cases(runvar)]
   #Grab some summary vars
   rn <- length(runvar)
@@ -206,37 +206,14 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
   z<-thetahat/sethetahat
   p<-2*pnorm(abs(z),lower.tail=FALSE)
 
-  if(verbose) {
-    cat("Log difference in heights is ",
-              sprintf("%.3f",thetahat),
-              " with SE ",
-              sprintf("%.3f",sethetahat),"\n"
-        )
-    cat("  this gives a z-stat of ",sprintf("%.3f",z),"\n")
-    cat("  and a p value of ",sprintf("%.3f",p),"\n")
-  }
-  if(ext.out)
-    return(list(theta=thetahat,
-                se=sethetahat,
-                z=z,
-                p=p,
-                binsize=bin,
-                bw=bw,
-                cutpoint=cutpoint,
-                data=data.frame(cellmp,cellval)
-               )
-          )
-  else if (htest) {
-      # Return an htest object, for compatibility with base R test output.
-      structure(list(
-          statistic   = c(`z` = z),
-          p.value     = p,
-          method      = "McCrary (2008) sorting test",
-          parameter   = c(`binwidth`  = bin,
-                          `bandwidth` = bw,
-                          `cutpoint`  = cutpoint),
-          alternative = "no apparent sorting"),
-          class = "htest")
-  }
-  else return(p)
+  # Return an htest object, for compatibility with base R test output.
+  structure(list(
+    statistic   = c(`z` = z),
+    p.value     = p,
+    method      = "McCrary (2008) sorting test",
+    parameter   = c(`binwidth`  = bin,
+                    `bandwidth` = bw,
+                    `cutpoint`  = cutpoint),
+    alternative = "no apparent sorting"),
+    class = "htest")
 }
