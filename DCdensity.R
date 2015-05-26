@@ -1,7 +1,7 @@
 #' McCrary Sorting Test
-#' 
+#'
 #' \code{DCdensity} implements the McCrary (2008) sorting test.
-#' 
+#'
 #' @param runvar numerical vector of the running variable
 #' @param cutpoint the cutpoint (defaults to 0)
 #' @param bin the binwidth (defaults to \code{2*sd(runvar)*length(runvar)^(-.5)})
@@ -27,7 +27,7 @@
 #' #No discontinuity
 #' x<-runif(1000,-1,1)
 #' DCdensity(x,0)
-#' 
+#'
 #' #Discontinuity
 #' x<-runif(1000,-1,1)
 #' x<-x+2*(runif(1000,-1,1)>0&x<0)
@@ -44,22 +44,22 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
     if(verbose) cat("Assuming cutpoint of zero.\n")
     cutpoint<-0
   }
-  
+
   if(cutpoint<=rmin | cutpoint>=rmax){
-   stop("Cutpoint must lie within range of runvar") 
+   stop("Cutpoint must lie within range of runvar")
   }
-  
+
   if(is.null(bin)) {
     bin <- 2*rsd*rn^(-1/2)
     if(verbose) cat("Using calculated bin size: ",sprintf("%.3f",bin),"\n")
   }
-  
+
   l <- floor((rmin - cutpoint)/bin)*bin + bin/2 + cutpoint #Midpoint of lowest bin
   r <- floor((rmax - cutpoint)/bin)*bin + bin/2 + cutpoint #Midpoint of highest bin
   lc <- cutpoint-(bin/2) #Midpoint of bin just left of breakpoint
   rc <- cutpoint+(bin/2) #Midpoint of bin just right of breakpoint
   j <- floor((rmax - rmin)/bin) + 2
-  
+
   binnum <- round((((floor((runvar - cutpoint)/bin)*bin + bin/2 + cutpoint) - l)/bin) + 1)
 
   cellval <- rep(0,j)
@@ -71,11 +71,11 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
 
   cellmp <- seq(from=1,to=j,by=1)
   cellmp <- floor(((l + (cellmp - 1)*bin ) - cutpoint)/bin)*bin + bin/2 + cutpoint
-  
+
   #If no bandwidth is given, calc it
   if(is.null(bw)){
     #bin number just left of breakpoint
-    leftofc <-  round((((floor((lc - cutpoint)/bin)*bin + bin/2 + cutpoint) - l)/bin) + 1) 
+    leftofc <-  round((((floor((lc - cutpoint)/bin)*bin + bin/2 + cutpoint) - l)/bin) + 1)
     #bin number just right of breakpoint
     rightofc <- round((((floor((rc - cutpoint)/bin)*bin + bin/2 + cutpoint) - l)/bin) + 1)
     if ( rightofc - leftofc != 1) {
@@ -83,22 +83,22 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
     }
     cellmpleft <- cellmp[1:leftofc]
     cellmpright <- cellmp[rightofc:j]
-    
+
     #Estimate 4th order polynomial to the left
     P.lm <- lm(
-      cellval ~ poly(cellmp,degree=4,raw=T), 
+      cellval ~ poly(cellmp,degree=4,raw=T),
       subset=cellmp<cutpoint
     )
     mse4 <- summary(P.lm)$sigma^2
     lcoef <- coef(P.lm)
     fppleft <- 2*lcoef[3] +
-      6*lcoef[4]*cellmpleft + 
+      6*lcoef[4]*cellmpleft +
       12*lcoef[5]*cellmpleft*cellmpleft
     hleft <- 3.348*(mse4*( cutpoint - l ) / sum(fppleft*fppleft))^(1/5)
 
     #And to the right
     P.lm <- lm(
-      cellval ~ poly(cellmp,degree=4,raw=T), 
+      cellval ~ poly(cellmp,degree=4,raw=T),
       subset=cellmp>=cutpoint
     )
     mse4 <- summary(P.lm)$sigma^2
@@ -111,7 +111,7 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
 
     bw = .5*( hleft + hright )
     if(verbose) cat("Using calculated bandwidth: ",sprintf("%.3f",bw),"\n")
-  } 
+  }
   if( sum(runvar>cutpoint-bw & runvar<cutpoint) ==0 |
     sum(runvar<cutpoint+bw & runvar>=cutpoint) ==0)
     stop("Insufficient data within the bandwidth.")
@@ -150,14 +150,14 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
        ylab=NA,
        main=NA
     )
-    
+
     lines(d.l$cellmp,d.l$lwr,
          lty=2,lwd=1,col="black",type="l"
     )
     lines(d.l$cellmp,d.l$upr,
           lty=2,lwd=1,col="black",type="l"
     )
-    
+
     #plot to the right
     lines(d.r$cellmp,d.r$est,
         lty=1,lwd=2,col="black",type="l"
@@ -168,7 +168,7 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
     lines(d.r$cellmp,d.r$upr,
           lty=2,lwd=1,col="black",type="l"
     )
-    
+
     #plot the histogram as points
     points(cellmp,cellval,type="p",pch=20)
   }
@@ -186,20 +186,20 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
               seq(r+bin,r+padzeros*bin,bin)
             )
   }
-  
+
   #Estimate to the left
   dist <- cmp - cutpoint
   w <- 1-abs(dist/bw)
   w <- ifelse(w>0, w*(cmp<cutpoint), 0)
   w <- (w/sum(w))*jp
   fhatl <- predict(lm(cval~dist,weights=w),newdata=data.frame(dist=0))[[1]]
-  
+
   #Estimate to the right
   w <- 1-abs(dist/bw)
   w <- ifelse(w>0, w*(cmp>=cutpoint), 0)
   w <- (w/sum(w))*jp
   fhatr<-predict(lm(cval~dist,weights=w),newdata=data.frame(dist=0))[[1]]
-  
+
   #Calculate and display dicontinuity estimate
   thetahat <- log(fhatr) - log(fhatl)
   sethetahat <- sqrt( (1/(rn*bw)) * (24/5) * ((1/fhatr) + (1/fhatl)) )
@@ -215,7 +215,7 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=TRUE,e
     cat("  this gives a z-stat of ",sprintf("%.3f",z),"\n")
     cat("  and a p value of ",sprintf("%.3f",p),"\n")
   }
-  if(ext.out) 
+  if(ext.out)
     return(list(theta=thetahat,
                 se=sethetahat,
                 z=z,
