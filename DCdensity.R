@@ -214,6 +214,61 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=FALSE)
     parameter   = c(`binwidth`  = bin,
                     `bandwidth` = bw,
                     `cutpoint`  = cutpoint),
-    alternative = "no apparent sorting"),
-    class = "htest")
+    alternative = "no apparent sorting",
+    data        = data.frame(cellmp, cellval)),
+    class = c("DCdensity_htest", "htest"))
+}
+
+plot.DCdensity_htest <- function(x, kernel = "triangular", ...) {
+    left.data  <- data.frame(subset(x$data, cellmp < x$parameter["cutpoint"]),
+                             dist = NA, est = NA, lwr = NA, upr = NA)
+    right.data <- data.frame(subset(x$data, cellmp >= x$parameter["cutpoint"]),
+                             dist = NA, est = NA, lwr = NA, upr = NA)
+
+    for(i in 1:nrow(left.data)) {
+      left.data$dist <- left.data$cellmp - left.data[i, "cellmp"]
+      w <- kernelwts(left.data$dist, 0, x$parameter["bandwidth"], kernel = kernel)
+      newd <- data.frame(dist = 0)
+      pred <- predict(lm(cellval ~ dist, weights = w, data = left.data),
+                      interval = "confidence", newdata = newd)
+      left.data$est[i] <- pred[1]
+      left.data$lwr[i] <- pred[2]
+      left.data$upr[i] <- pred[3]
+    }
+
+    for(i in 1:nrow(right.data)) {
+      right.data$dist <- right.data$cellmp - right.data[i, "cellmp"]
+      w <- kernelwts(right.data$dist, 0, x$parameter["bandwidth"], kernel = kernel)
+      newd <- data.frame(dist = 0)
+      pred <- predict(lm(cellval ~ dist, weights = w, data = right.data),
+                      interval = "confidence", newdata = newd)
+      right.data$est[i] <- pred[1]
+      right.data$lwr[i] <- pred[2]
+      right.data$upr[i] <- pred[3]
+    }
+
+    # Create a new, empty plot of a reasonable size.
+    plot(x$data$cellmp, x$data$cellval, type = "n",
+         xlim = range(x$data$cellmp),
+         ylim = c(0, 2.55), #range(x$data$cellval),
+         xlab = NA, ylab = NA, main = NA)
+
+    # Plot the fit and confidence interval on the left side.
+    lines(left.data$cellmp, left.data$est, type = "l",
+          lty = 1, lwd = 2, col = "black")
+    lines(left.data$cellmp, left.data$lwr, type = "l",
+          lty = 2, lwd = 1, col = "black")
+    lines(left.data$cellmp, left.data$upr, type = "l",
+          lty = 2, lwd = 1, col = "black")
+
+    # And the right.
+    lines(right.data$cellmp, right.data$est, type = "l",
+          lty = 1, lwd = 2, col = "black")
+    lines(right.data$cellmp, right.data$lwr, type = "l",
+          lty = 2, lwd = 1, col = "black")
+    lines(right.data$cellmp, right.data$upr, type = "l",
+          lty = 2, lwd = 1, col = "black")
+
+    # Plot the histogram as points.
+    points(x$data$cellmp, x$data$cellval, type = "p", pch = 20)
 }
