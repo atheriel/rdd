@@ -216,10 +216,10 @@ DCdensity <- function(runvar,cutpoint,bin=NULL,bw=NULL,verbose=FALSE,plot=FALSE)
                     `cutpoint`  = cutpoint),
     alternative = "no apparent sorting",
     data        = data.frame(cellmp, cellval)),
-    class = c("DCdensity_htest", "htest"))
+    class = c("mccrary_htest", "htest"))
 }
 
-plot.DCdensity_htest <- function(x, kernel = "triangular", ...) {
+plot.mccrary_htest <- function(x, kernel = "triangular", ...) {
     left.data  <- data.frame(subset(x$data, cellmp < x$parameter["cutpoint"]),
                              dist = NA, est = NA, lwr = NA, upr = NA)
     right.data <- data.frame(subset(x$data, cellmp >= x$parameter["cutpoint"]),
@@ -271,4 +271,61 @@ plot.DCdensity_htest <- function(x, kernel = "triangular", ...) {
 
     # Plot the histogram as points.
     points(x$data$cellmp, x$data$cellval, type = "p", pch = 20)
+}
+
+autoplot.mccrary_htest <- function(x, kernel = "triangular", cutpoint = TRUE,
+                                   line.color = "red",
+                                   point.shape = 20, point.alpha = 0.8,
+                                   ...) {
+
+    left.data  <- data.frame(subset(x$data, cellmp < x$parameter["cutpoint"]),
+                             dist = NA, est = NA, lwr = NA, upr = NA)
+    right.data <- data.frame(subset(x$data, cellmp >= x$parameter["cutpoint"]),
+                             dist = NA, est = NA, lwr = NA, upr = NA)
+
+    for(i in 1:nrow(left.data)) {
+      left.data$dist <- left.data$cellmp - left.data[i, "cellmp"]
+      w <- kernelwts(left.data$dist, 0, x$parameter["bandwidth"], kernel = kernel)
+      newd <- data.frame(dist = 0)
+      pred <- predict(lm(cellval ~ dist, weights = w, data = left.data),
+                      interval = "confidence", newdata = newd)
+      left.data$est[i] <- pred[1]
+      left.data$lwr[i] <- pred[2]
+      left.data$upr[i] <- pred[3]
+    }
+
+    for(i in 1:nrow(right.data)) {
+      right.data$dist <- right.data$cellmp - right.data[i, "cellmp"]
+      w <- kernelwts(right.data$dist, 0, x$parameter["bandwidth"], kernel = kernel)
+      newd <- data.frame(dist = 0)
+      pred <- predict(lm(cellval ~ dist, weights = w, data = right.data),
+                      interval = "confidence", newdata = newd)
+      right.data$est[i] <- pred[1]
+      right.data$lwr[i] <- pred[2]
+      right.data$upr[i] <- pred[3]
+    }
+
+    plt <- ggplot2::ggplot(x$data, ggplot2::aes(x = cellmp)) +
+        # Adds a vertical line at the cut point.
+        ggplot2::geom_vline(x = x$parameter["cutpoint"], linetype = 5,
+                            colour = "gray25") +
+        # The left-hand fit and interval.
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lwr, ymax = upr), alpha = 0.8,
+                             data = left.data, colour = NA, fill = "gray65") +
+        ggplot2::geom_line(ggplot2::aes(y = est), data = left.data,
+                           colour = line.color, size = 0.75,
+                           lineend = "round") +
+        # The right-hand fit and interval.
+        ggplot2::geom_ribbon(ggplot2::aes(ymin = lwr, ymax = upr), alpha = 0.8,
+                             data = right.data, colour = NA, fill = "gray65") +
+        ggplot2::geom_line(ggplot2::aes(y = est), data = right.data,
+                           colour = line.color, size = 0.75,
+                           lineend = "round") +
+        # A scatter plot of the bins themselves.
+        ggplot2::geom_point(ggplot2::aes(y = cellval),
+                            alpha = point.alpha, shape = point.shape) +
+        # Suppress labelling.
+        ggplot2::labs(x = NULL, y = NULL)
+
+    plt
 }
